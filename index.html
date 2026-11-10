@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#101827">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DLS FARM BOT">
+<title>DLS FARM BOT</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#151f31;--line:#2a3a53;--muted:#a8b5c8;--green:#35c987;--gold:#f5c84c;--blue:#56b8ff}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#101c31,#080d17);font:16px system-ui,Arial;color:#f4f7fb}
+main{max-width:620px;margin:auto;padding:18px 14px 40px}.head{display:flex;align-items:center;gap:12px;margin:8px 0 18px}.ball{font-size:34px}.sub{color:var(--muted);font-size:13px}
+h1{font-size:23px;margin:0}h2{font-size:17px;margin:0 0 12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 8px 24px #0003}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#0e1726;border-radius:12px;padding:13px}.num{font-size:26px;font-weight:800}.gold{color:var(--gold)}.blue{color:var(--blue)}.green{color:var(--green)}
+label{display:block;color:var(--muted);font-size:13px;margin:10px 0 5px}input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0b1422;color:white;font-size:17px}
+button{border:0;border-radius:11px;padding:13px 15px;font-weight:750;font-size:15px;background:var(--green);color:#062318;width:100%;margin-top:12px}
+button.secondary{background:#263750;color:#eef5ff}button.danger{background:#512b35;color:#ffe7ec}
+.note{color:var(--muted);font-size:13px;line-height:1.45}.result{font-size:22px;font-weight:800}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:9px 5px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+#history{overflow-x:auto}.pill{font-size:12px;border:1px solid #28684f;color:#83efbb;border-radius:30px;padding:4px 9px}
+input[type=file]{font-size:13px}.preview{max-width:100%;border-radius:10px;margin-top:8px;display:none}
+</style>
+</head>
+<body>
+<main>
+ <div class="head"><div class="ball">⚽</div><div><h1>DLS FARM BOT</h1><div class="sub">Panel auxiliar · Android · Registro local</div></div><span class="pill">PROTOTIPO</span></div>
+ <div class="card">
+  <h2>📊 Saldo actual</h2>
+  <div class="grid">
+   <div class="stat"><div class="sub">🪙 Monedas</div><div class="num gold" id="coinsView">1.142</div></div>
+   <div class="stat"><div class="sub">💎 Gemas</div><div class="num blue" id="gemsView">11</div></div>
+  </div>
+  <div class="note" style="margin-top:10px">Datos de demostración basados en tu última captura. Puedes cambiarlos abajo.</div>
+ </div>
+ <div class="card">
+  <h2>✍️ Registrar saldo después de jugar</h2>
+  <label>Monedas actuales</label><input id="coins" type="number" min="0" inputmode="numeric" value="1142">
+  <label>Gemas actuales</label><input id="gems" type="number" min="0" inputmode="numeric" value="11">
+  <label>Partidos completados (contador)</label><input id="matches" type="number" min="0" inputmode="numeric" value="1">
+  <button id="save">Guardar saldo y calcular diferencia</button>
+  <div id="delta" class="note" style="margin-top:12px">Saldo inicial registrado: 1.093 monedas y 11 gemas.</div>
+ </div>
+ <div class="card">
+  <h2>🖼️ Revisar captura (manual)</h2>
+  <div class="note">Selecciona una captura de DLS. Este prototipo la muestra para que puedas leer los valores; no realiza OCR ni controla el juego.</div>
+  <label>Elegir imagen</label><input id="image" type="file" accept="image/*">
+  <img id="preview" class="preview" alt="Vista previa de captura">
+ </div>
+ <div class="card">
+  <div class="row"><h2>📚 Historial de sesiones</h2><span class="pill">En este dispositivo</span></div>
+  <div id="history" class="note">Todavía no hay registros.</div>
+  <button class="secondary" id="export">Exportar historial CSV</button>
+  <button class="danger" id="reset">Borrar datos de este panel</button>
+ </div>
+ <div class="card note">
+  <b>Privacidad y seguridad:</b> el panel guarda los datos en el almacenamiento local del navegador. No solicita accesibilidad, root, acceso a DLS ni conexión a tu cuenta. No automatiza partidos ni modifica recompensas.
+ </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let state=JSON.parse(localStorage.getItem('dlsFarmState')||'null')||{coins:1093,gems:11,matches:0,history:[]};
+function fmt(n){return Number(n||0).toLocaleString('es-ES')}
+function render(){
+ $('coinsView').textContent=fmt(state.coins);$('gemsView').textContent=fmt(state.gems);
+ $('coins').value=state.coins;$('gems').value=state.gems;$('matches').value=state.matches;
+ if(state.history.length){
+  $('history').innerHTML='<table><thead><tr><th>Fecha</th><th>Monedas Δ</th><th>Gemas Δ</th><th>Saldo</th></tr></thead><tbody>'+
+  state.history.slice().reverse().map(x=>`<tr><td>${x.date}</td><td>${x.dc>=0?'+':''}${fmt(x.dc)}</td><td>${x.dg>=0?'+':''}${fmt(x.dg)}</td><td>${fmt(x.coins)}</td></tr>`).join('')+'</tbody></table>';
+ }else $('history').textContent='Todavía no hay registros.';
+ localStorage.setItem('dlsFarmState',JSON.stringify(state));
+}
+$('save').onclick=()=>{
+ const c=Math.max(0,Number($('coins').value)||0),g=Math.max(0,Number($('gems').value)||0),m=Math.max(0,Number($('matches').value)||0);
+ const dc=c-state.coins,dg=g-state.gems;
+ state.history.push({date:new Date().toLocaleString('es-EC'),coins:c,gems:g,dc,dg,matches:m});
+ state.coins=c;state.gems=g;state.matches=m;
+ $('delta').innerHTML=`Diferencia desde el último registro: <b class="${dc>=0?'green':'gold'}">${dc>=0?'+':''}${fmt(dc)} monedas</b> y <b>${dg>=0?'+':''}${fmt(dg)} gemas</b>.`;
+ render();
+};
+$('image').onchange=e=>{const f=e.target.files[0];if(!f)return;const u=URL.createObjectURL(f);$('preview').src=u;$('preview').style.display='block';};
+$('export').onclick=()=>{
+ const rows=[['fecha','monedas','gemas','cambio_monedas','cambio_gemas','partidos'],...state.history.map(x=>[x.date,x.coins,x.gems,x.dc,x.dg,x.matches])];
+ const csv=rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='dls-farm-historial.csv';a.click();URL.revokeObjectURL(a.href);
+};
+$('reset').onclick=()=>{if(confirm('¿Borrar el historial y volver a los saldos iniciales de referencia?')){state={coins:1093,gems:11,matches:0,history:[]};$('delta').textContent='Datos reiniciados.';render();}};
+render();
+</script>
+<script>if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script>
+</body></html>
